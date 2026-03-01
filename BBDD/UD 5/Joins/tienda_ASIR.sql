@@ -305,8 +305,8 @@ INSERT INTO pagos (id_pedido, metodo, importe, fecha_pago, estado) VALUES
     SELECT
         p.id_pedido,
         c.nombre
-    FROM `pedidos` p
-    RIGHT JOIN `clientes` c
+    FROM `clientes` c
+    RIGHT JOIN `pedidos` p
     ON p.id_cliente = c.id_cliente;
 
 -- D2) Detectar pedidos sin cliente.
