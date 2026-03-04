@@ -394,3 +394,127 @@ INSERT INTO pagos (id_pedido, metodo, importe, fecha_pago, estado) VALUES
     FROM `pedidos` p
     LEFT JOIN `pagos` pa
     ON p.id_pedido=pa.id_pedido AND pa.estado='ok';
+
+    -- =========================================================
+-- F) FULL JOIN (simulado en MySQL) + UNION / UNION ALL
+-- =========================================================
+
+-- F1) FULL JOIN simulado clientes <-> pedidos (todos los clientes y todos los pedidos)
+--     Ojo: columnas deben coincidir en ambos SELECT.
+    Select * 
+    FROM clientes c
+    Left Join pedidos p
+    ON c.id_cliente = p.id_cliente
+
+    UNION
+
+    Select *
+    FROM clientes c
+    Right join pedidos p
+    ON c.id_cliente = p.id_cliente;
+
+-- F2) FULL JOIN simulado pedidos <-> pagos (ver pedidos sin pago y pagos "raros" si existieran)
+    Select * 
+    FROM pedidos p
+    Left Join pagos pa
+    ON p.id_pedido = pa.id_pedido
+
+    UNION
+
+    Select *
+    FROM pedidos p
+    RIGHT Join pagos pa
+    ON p.id_pedido = pa.id_pedido;
+
+
+-- F3) Versión optimizada (sin duplicados) con UNION ALL:
+--     LEFT JOIN completo + solo los "exclusivos" del RIGHT (cuando falta la izquierda).
+    Select * 
+    FROM pedidos p
+    Left Join pagos pa
+    ON p.id_pedido = pa.id_pedido
+
+    UNION ALL
+
+    Select *
+    FROM pedidos p
+    RIGHT Join pagos pa
+    ON p.id_pedido = pa.id_pedido;
+
+
+-- =========================================================
+-- G) Subconsultas avanzadas (IN / EXISTS) + práctica aplicada
+-- =========================================================
+
+-- G1) Clientes que han hecho algún pedido (IN)
+    Select c.nombre
+    From clientes c
+    WHERE c.id_cliente in (
+    SELECT p.id_cliente FROM pedidos p where id_cliente<>null);
+
+-- G2) Clientes que NO han hecho pedidos (NOT IN con cuidado de NULL)
+-- Mejor usar NOT EXISTS (ver G3). Aquí lo dejamos didáctico filtrando NULL en subconsulta:
+    Select c.nombre
+    From clientes c
+    WHERE c.id_cliente not in (
+    SELECT p.id_cliente FROM pedidos p);
+
+-- G3) Clientes sin pedidos (NOT EXISTS) - recomendada
+    Select c.nombre
+    From clientes c
+    WHERE NOT EXISTS (
+    SELECT 1 FROM pedidos p
+    where c.id_cliente = p.id_cliente);
+
+-- G4) Clientes con algún pago OK (EXISTS)   -- Revisar
+    Select c.nombre
+    From clientes c
+    WHERE EXISTS (
+    SELECT * FROM pedidos p);
+
+-- G5) Pedidos cuyo total (sumatorio de líneas) supera 500€
+-- (Subconsulta correlacionada: calcula el total del pedido)
+    SELECT p1.* FROM pedido_lineas p1
+    WHERE (
+    SELECT SUM(p2.precio_unitario) as suma
+    FROM `pedido_lineas` p2
+    where p1.id_pedido = p2.id_pedido)>500;
+
+-- G6) Mostrar buenos clientes: han hecho algún pedido con total > 500€
+
+    SELECT c.*
+    FROM clientes c
+    INNER JOIN pedidos p
+        ON c.id_cliente = p.id_cliente
+    WHERE (
+        SELECT SUM(pl.precio_unitario)
+        FROM pedido_lineas pl
+        WHERE pl.id_pedido = p.id_pedido
+    ) > 500;
+
+-- G7) UNION: lista única de entidades a revisar (clientes sin pedido + pedidos sin pago)
+-- (Ejemplo de uso práctico de UNION para consolidar incidencias)
+    Select c.id_cliente from clientes c
+    left join pedidos p
+    on c.id_cliente = p.id_cliente
+    where p.id_pedido is null
+
+    UNION
+
+    Select p.id_pedido from pedidos p
+    left join pedido_lineas pl
+    on p.id_pedido = pl.id_pedido
+    where pl.id_pedido is null;
+
+
+    Select 'cliente sin pedido' as tipo, c.id_cliente from clientes c
+    left join pedidos p
+    on c.id_cliente = p.id_cliente
+    where p.id_pedido is null
+
+    UNION
+
+    Select 'pedido sin pago' as tipo, p.id_pedido from pedidos p
+    left join pedido_lineas pl
+    on p.id_pedido = pl.id_pedido
+    where pl.id_pedido is null;
